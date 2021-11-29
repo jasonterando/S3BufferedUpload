@@ -1,0 +1,7 @@
+src/bin/
+src/obj/
+test/.config/dotnet-tools.json
+test/bin
+test/obj
+test/.results/reports
+test/.results/coverage.xml
