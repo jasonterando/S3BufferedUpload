@@ -441,7 +441,7 @@ public class S3BufferedUploadStreamTests
     }
 
     [Test]
-    public async Task PerformFlushShouldExitIfCancelledFromUploadPart()
+    public void PerformFlushShouldExitIfCancelledFromUploadPart()
     {
         var s3ClientMock = new Mock<IAmazonS3>();
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY);
@@ -455,9 +455,7 @@ public class S3BufferedUploadStreamTests
         stream.State = S3BufferedUploadStream.StateType.Uploading;
         stream._minSendTheshold = 10;
         stream._readBuffer.Write(new byte[11], 0, 11);
-        await stream.PerformFlush(false);
-        // part tags should not be set if cancelled during upload part
-        Assert.AreEqual(0, stream._partETags.Count);
+        Assert.ThrowsAsync<TaskCanceledException>(async () => await stream.PerformFlush(false));
     }
 
     [Test]
@@ -659,7 +657,7 @@ public class S3BufferedUploadStreamTests
     }    
 
     [Test]
-    public async Task CompleteUploadExitsIfCancelled()
+    public void CompleteUploadExitsIfCancelled()
     {
         var s3ClientMock = new Mock<IAmazonS3>();
         var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
@@ -667,8 +665,7 @@ public class S3BufferedUploadStreamTests
         stream.CallBase = true;
         stream.Object.Cancel();
         stream.Setup(m => m.PerformFlush(It.IsAny<bool>())).Verifiable();
-        await stream.Object.CompleteUpload();
-        stream.Verify(m => m.PerformFlush(It.IsAny<bool>()), Times.Never);
+        Assert.ThrowsAsync<TaskCanceledException>(async () => await stream.Object.CompleteUpload());
     }    
 
     [Test]

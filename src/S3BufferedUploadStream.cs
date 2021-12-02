@@ -234,7 +234,7 @@ public class S3BufferedUploadStream : Stream, IDisposable
             var partResponse = await _s3Client.UploadPartAsync(uploadPartRequest, _cancellation.Token);
             if (_cancellation.IsCancellationRequested)
             {
-                return;
+                throw new TaskCanceledException();
             }
             if (UploadedPart != null)
             {
@@ -287,8 +287,11 @@ public class S3BufferedUploadStream : Stream, IDisposable
     {
         await _locker.LockAsync(async () =>
         {
-            if (_cancellation.IsCancellationRequested
-                || State != StateType.Uploading
+            if (_cancellation.IsCancellationRequested)
+            {
+                throw new TaskCanceledException();
+            }
+            if (State != StateType.Uploading
                 || _initiateResponse == null
             )
             {

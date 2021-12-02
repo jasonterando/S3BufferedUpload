@@ -2,10 +2,11 @@
 
   <PropertyGroup>
     <PackageId>S3BufferedUpload</PackageId>
-    <Version>0.1.1</Version>
+    <Version>0.1.3</Version>
     <Authors>Jason Terando</Authors>
     <Company>Jason Terando</Company>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <TargetFrameworks>net6.0;net5.0;netcoreapp3.1;netstandard2.1</TargetFrameworks>
     <LangVersion>latestMajor</LangVersion>
     <Nullable>enable</Nullable>
@@ -20,7 +21,11 @@
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
       <_Parameter1>$(AssemblyName).Tests</_Parameter1>
     </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="../README.md" Pack="true" PackagePath="\"/>
+    <None Include="../LICENSE.md" Pack="true" PackagePath="\"/>
   </ItemGroup>
 
 </Project>
