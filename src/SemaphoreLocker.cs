@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 /// <summary>
 /// This class implements an async-friendly locking mechanism which accepts
-/// either 
+/// either a void or typed/generic callback
 /// </summary>
 public class SemaphoreLocker
 {
@@ -16,7 +16,8 @@ public class SemaphoreLocker
 
     public SemaphoreLocker(int semaphoreTimeout = DEFAULT_SEMAPHORE_TIMEOUT)
     {
-        if (semaphoreTimeout < 1) {
+        if (semaphoreTimeout < 1)
+        {
             throw new ArgumentException("Semaphore timeout must be greater than zero");
         }
         SemaphoreTimeout = semaphoreTimeout;
@@ -30,10 +31,10 @@ public class SemaphoreLocker
     /// <exception cref="Exception"></exception>
     public async Task LockAsync(Func<Task> worker)
     {
-        if (! await _semaphore.WaitAsync(SemaphoreTimeout)) {
+        if (!await _semaphore.WaitAsync(SemaphoreTimeout))
+        {
             throw new Exception("Unable to lock context");
         }
-        // System.Console.Error.WriteLine($"LockAsync incremented to {_semaphore.CurrentCount}");
         try
         {
             await worker();
@@ -41,7 +42,6 @@ public class SemaphoreLocker
         finally
         {
             _semaphore.Release();
-            // System.Console.Error.WriteLine($"LockAsync released to {_semaphore.CurrentCount}");
         }
     }
 
@@ -54,10 +54,10 @@ public class SemaphoreLocker
     /// <exception cref="Exception"></exception>
     public async Task<T> LockAsync<T>(Func<Task<T>> worker)
     {
-        if (! await _semaphore.WaitAsync(SemaphoreTimeout)) {
+        if (!await _semaphore.WaitAsync(SemaphoreTimeout))
+        {
             throw new Exception("Unable to lock context");
         }
-        // System.Console.Error.WriteLine($"LockAsync incremented to {_semaphore.CurrentCount}");
         try
         {
             return await worker();
@@ -65,7 +65,6 @@ public class SemaphoreLocker
         finally
         {
             _semaphore.Release();
-            // System.Console.Error.WriteLine($"LockAsync released to {_semaphore.CurrentCount}");
         }
     }
 }

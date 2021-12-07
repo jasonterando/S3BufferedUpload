@@ -102,10 +102,7 @@ public class S3BufferedUploadStream : Stream, IDisposable
     /// </summary>
     void IDisposable.Dispose()
     {
-        Task.Run(async () =>
-        {
-            await CompleteUpload();
-        }).Wait();
+        Cleanup();
     }
 
     /// <summary>
@@ -114,19 +111,26 @@ public class S3BufferedUploadStream : Stream, IDisposable
     public override void Close()
     {
         base.Close();
+        Cleanup();
+    }
+
+    /// <summary>
+    /// Ensure stream is completed or aborted if not already done so
+    /// </summary>
+    protected internal virtual void Cleanup()
+    {
         Task.Run(async () =>
         {
             if (_cancellation.IsCancellationRequested)
             {
                 await AbortUpload();
-            } 
+            }
             else
             {
                 await CompleteUpload();
             }
         }).Wait();
     }
-
 
     /// <summary>
     /// Write to S3 via buffer
@@ -317,8 +321,7 @@ public class S3BufferedUploadStream : Stream, IDisposable
     {
         await _locker.LockAsync(async () =>
         {
-            if (_cancellation.IsCancellationRequested
-                || State != StateType.Uploading
+            if (State != StateType.Uploading
                 || _initiateResponse == null
             )
             {
@@ -371,10 +374,10 @@ public class S3BufferedUploadStream : Stream, IDisposable
     protected virtual internal void SetAborted(AbortMultipartUploadResponse response)
     {
         _abortResponse = response;
+        State = StateType.Aborted;
         if (Aborted != null)
         {
             Aborted(this, _abortResponse);
-            State = StateType.Aborted;
         }
     }
 

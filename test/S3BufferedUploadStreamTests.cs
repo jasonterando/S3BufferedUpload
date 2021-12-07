@@ -10,7 +10,6 @@ using System.Collections.Generic;
 using S3BufferedUploads;
 using Amazon.Runtime;
 
-[NonParallelizable]
 public class S3BufferedUploadStreamTests
 {
     private const string S3_BUCKET_NAME = "MYBUCKET";
@@ -60,43 +59,16 @@ public class S3BufferedUploadStreamTests
     }
 
     [Test]
-    public void DisposeCallsCompleteUploadIfNotCancelled()
+    public void DisposeCallsCleanup()
     {
         var s3ClientMock = new Mock<IAmazonS3>();
         var mockStream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
             S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         mockStream.CallBase = true;
         mockStream.Object._initiateResponse = new InitiateMultipartUploadResponse();
-        mockStream.Setup(m => m.CompleteUpload()).Verifiable();
+        mockStream.Setup(m => m.Cleanup()).Verifiable();
         mockStream.Object.Dispose();
-        mockStream.Verify(m => m.CompleteUpload(), Times.Once());
-    }
-
-    [Test]
-    public void DisposeCallsAbortUploadIfCancelled()
-    {
-        var s3ClientMock = new Mock<IAmazonS3>();
-        var mockStream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
-        mockStream.CallBase = true;
-        mockStream.Object._initiateResponse = new InitiateMultipartUploadResponse();
-        mockStream.Setup(m => m.AbortUpload()).Verifiable();
-        mockStream.Object.Cancel();
-        mockStream.Object.Dispose();
-        mockStream.Verify(m => m.AbortUpload(), Times.Once());
-    }
-
-    [Test]
-    public void CloseCallsCompleteUpload()
-    {
-        var s3ClientMock = new Mock<IAmazonS3>();
-        var mockStream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
-        mockStream.CallBase = true;
-        mockStream.Object._initiateResponse = new InitiateMultipartUploadResponse();
-        mockStream.Setup(m => m.CompleteUpload()).Verifiable();
-        mockStream.Object.Close();
-        mockStream.Verify(m => m.CompleteUpload(), Times.Once());
+        mockStream.Verify(m => m.Cleanup(), Times.Once());
     }
 
     [Test]
@@ -107,11 +79,39 @@ public class S3BufferedUploadStreamTests
             S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         mockStream.CallBase = true;
         mockStream.Object._initiateResponse = new InitiateMultipartUploadResponse();
+        mockStream.Setup(m => m.Cleanup()).Verifiable();
+        mockStream.Object.Close();
+        mockStream.Verify(m => m.Cleanup(), Times.Once());
+    }
+
+
+    [Test]
+    public void CleanupCallsCompleteUploadIfNotCancelled()
+    {
+        var s3ClientMock = new Mock<IAmazonS3>();
+        var mockStream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
+            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+        mockStream.CallBase = true;
+        mockStream.Object._initiateResponse = new InitiateMultipartUploadResponse();
+        mockStream.Setup(m => m.CompleteUpload()).Verifiable();
+        mockStream.Object.Dispose();
+        mockStream.Verify(m => m.CompleteUpload(), Times.Once());
+    }
+
+    [Test]
+    public void CleanupCallsAbortUploadIfCancelled()
+    {
+        var s3ClientMock = new Mock<IAmazonS3>();
+        var mockStream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
+            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+        mockStream.CallBase = true;
+        mockStream.Object._initiateResponse = new InitiateMultipartUploadResponse();
         mockStream.Setup(m => m.AbortUpload()).Verifiable();
         mockStream.Object.Cancel();
-        mockStream.Object.Close();
+        mockStream.Object.Dispose();
         mockStream.Verify(m => m.AbortUpload(), Times.Once());
     }
+
 
     [Test]
     public void WriteCallsInitiateOnFirstCall()
@@ -257,16 +257,17 @@ public class S3BufferedUploadStreamTests
 
         s3ClientMock
             .Setup(m => m.UploadPartAsync(It.IsAny<UploadPartRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) => {
+            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) =>
+            {
                 Assert.AreEqual(mockResponse.BucketName, request.BucketName);
                 Assert.AreEqual(mockResponse.Key, request.Key);
                 Assert.AreEqual(mockResponse.UploadId, request.UploadId);
 
                 bytesToS3 += request.PartSize;
-                request.InputStream.Read(resultBuffer, resultBufferCount, (int) request.PartSize);
-                resultBufferCount += (int) request.PartSize;
+                request.InputStream.Read(resultBuffer, resultBufferCount, (int)request.PartSize);
+                resultBufferCount += (int)request.PartSize;
                 s3WriteCount++;
-                return Mock.Of<UploadPartResponse>(); 
+                return Mock.Of<UploadPartResponse>();
             });
 
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY);
@@ -301,16 +302,17 @@ public class S3BufferedUploadStreamTests
 
         s3ClientMock
             .Setup(m => m.UploadPartAsync(It.IsAny<UploadPartRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) => {
+            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) =>
+            {
                 Assert.AreEqual(mockResponse.BucketName, request.BucketName);
                 Assert.AreEqual(mockResponse.Key, request.Key);
                 Assert.AreEqual(mockResponse.UploadId, request.UploadId);
 
                 bytesToS3 += request.PartSize;
-                request.InputStream.Read(resultBuffer, resultBufferCount, (int) request.PartSize);
-                resultBufferCount += (int) request.PartSize;
+                request.InputStream.Read(resultBuffer, resultBufferCount, (int)request.PartSize);
+                resultBufferCount += (int)request.PartSize;
                 s3WriteCount++;
-                return Mock.Of<UploadPartResponse>(); 
+                return Mock.Of<UploadPartResponse>();
             });
 
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY);
@@ -389,7 +391,7 @@ public class S3BufferedUploadStreamTests
         await stream.PerformFlush(false);
         Assert.AreEqual(1, stream._readBuffer.Position);
         Assert.AreEqual(1, stream._readBuffer.Length);
-    }    
+    }
 
     [Test]
     public async Task PerformFlushShouldNotReserveLastPartIfEncryptingAndLastPart()
@@ -407,7 +409,7 @@ public class S3BufferedUploadStreamTests
         await stream.PerformFlush(true);
         Assert.AreEqual(0, stream._readBuffer.Position);
         Assert.AreEqual(0, stream._readBuffer.Length);
-    }    
+    }
 
     [Test]
     public async Task PerformFlushShouldNotReserveLastPartIfNotEncrypting()
@@ -424,7 +426,7 @@ public class S3BufferedUploadStreamTests
         await stream.PerformFlush(false);
         Assert.AreEqual(0, stream._readBuffer.Position);
         Assert.AreEqual(0, stream._readBuffer.Length);
-    }    
+    }
 
     [Test]
     public async Task PerformFlushShouldExitIfCancelled()
@@ -467,21 +469,23 @@ public class S3BufferedUploadStreamTests
 
         bool streamProgressCalled = false;
         s3ClientMock.Setup(m => m.UploadPartAsync(It.IsAny<UploadPartRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) => {
+            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) =>
+            {
                 if (request.StreamTransferProgress != null)
                 {
                     request.StreamTransferProgress(stream, new StreamTransferProgressArgs(0, 0, 0));
                 }
                 return new UploadPartResponse();
-        });
-        stream.StreamTransfer += (S3BufferedUploadStream _stream, StreamTransferProgressArgs args) => {
+            });
+        stream.StreamTransfer += (S3BufferedUploadStream _stream, StreamTransferProgressArgs args) =>
+        {
             streamProgressCalled = true;
         };
         stream._initiateResponse = new InitiateMultipartUploadResponse();
         stream.State = S3BufferedUploadStream.StateType.Uploading;
         stream._readBuffer.Write(new byte[1], 0, 1);
         await stream.PerformFlush(false);
-        Assert.AreEqual(true, streamProgressCalled);        
+        Assert.AreEqual(true, streamProgressCalled);
     }
 
     [Test]
@@ -492,20 +496,22 @@ public class S3BufferedUploadStreamTests
 
         bool streamProgressCalled = false;
         s3ClientMock.Setup(m => m.UploadPartAsync(It.IsAny<UploadPartRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) => {
+            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) =>
+            {
                 if (request.StreamTransferProgress != null)
                 {
                     request.StreamTransferProgress(stream, new StreamTransferProgressArgs(0, 0, 0));
                 }
                 return new UploadPartResponse();
-        });
-        stream.StreamTransfer += (S3BufferedUploadStream _stream, StreamTransferProgressArgs args) => {
+            });
+        stream.StreamTransfer += (S3BufferedUploadStream _stream, StreamTransferProgressArgs args) =>
+        {
             streamProgressCalled = true;
         };
         stream._initiateResponse = new InitiateMultipartUploadResponse();
         stream.State = S3BufferedUploadStream.StateType.Uploading;
         await stream.PerformFlush(true);
-        Assert.AreEqual(false, streamProgressCalled);        
+        Assert.AreEqual(false, streamProgressCalled);
     }
 
     [Test]
@@ -517,15 +523,16 @@ public class S3BufferedUploadStreamTests
 
         bool streamProgressDefined = false;
         s3ClientMock.Setup(m => m.UploadPartAsync(It.IsAny<UploadPartRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) => {
+            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) =>
+            {
                 streamProgressDefined = (request.StreamTransferProgress != null);
                 return new UploadPartResponse();
-        });
+            });
         stream._initiateResponse = new InitiateMultipartUploadResponse();
         stream.State = S3BufferedUploadStream.StateType.Uploading;
         stream._readBuffer.Write(new byte[] { 1 }, 0, 1);
         await stream.PerformFlush(true);
-        Assert.AreEqual(false, streamProgressDefined);        
+        Assert.AreEqual(false, streamProgressDefined);
     }
 
     [Test]
@@ -537,14 +544,15 @@ public class S3BufferedUploadStreamTests
 
         bool streamProgressDefined = false;
         s3ClientMock.Setup(m => m.UploadPartAsync(It.IsAny<UploadPartRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) => {
+            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) =>
+            {
                 streamProgressDefined = (request.StreamTransferProgress != null);
                 return new UploadPartResponse();
-        });
+            });
         stream._initiateResponse = new InitiateMultipartUploadResponse();
         stream.State = S3BufferedUploadStream.StateType.Uploading;
         await stream.PerformFlush(true);
-        Assert.AreEqual(false, streamProgressDefined);        
+        Assert.AreEqual(false, streamProgressDefined);
     }
 
     [Test]
@@ -560,14 +568,15 @@ public class S3BufferedUploadStreamTests
         };
 
         s3ClientMock.Setup(m => m.UploadPartAsync(It.IsAny<UploadPartRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) => {
+            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) =>
+            {
                 stream.Cancel();
                 return new UploadPartResponse();
-        });
+            });
         stream._initiateResponse = new InitiateMultipartUploadResponse();
         stream._readBuffer.Write(new byte[] { 1 }, 0, 1);
         await stream.PerformFlush(true);
-        Assert.AreEqual(false, uploadedPartCalled);        
+        Assert.AreEqual(false, uploadedPartCalled);
     }
 
     [Test]
@@ -583,16 +592,17 @@ public class S3BufferedUploadStreamTests
         };
 
         s3ClientMock.Setup(m => m.UploadPartAsync(It.IsAny<UploadPartRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) => {
+            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) =>
+            {
                 return new UploadPartResponse();
-        });
+            });
         stream._initiateResponse = new InitiateMultipartUploadResponse();
         stream.State = S3BufferedUploadStream.StateType.Uploading;
         stream._readBuffer.Write(new byte[] { 1 }, 0, 1);
         await stream.PerformFlush(true);
-        Assert.AreEqual(true, uploadedPartCalled);        
+        Assert.AreEqual(true, uploadedPartCalled);
     }
-    
+
     [Test]
     public async Task PerformFlushUpdatesETagsAndBuffer()
     {
@@ -600,7 +610,8 @@ public class S3BufferedUploadStreamTests
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
             S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         s3ClientMock.Setup(m => m.UploadPartAsync(It.IsAny<UploadPartRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) => {
+            .ReturnsAsync((UploadPartRequest request, CancellationToken _token) =>
+            {
                 return new UploadPartResponse
                 {
                     ETag = "Foo",
@@ -617,8 +628,8 @@ public class S3BufferedUploadStreamTests
         Assert.AreEqual(1, stream._bytesUploaded);
         Assert.AreEqual(0, stream._readBuffer.Length);
         Assert.AreEqual(0, stream._readBuffer.Position);
-    }    
-    
+    }
+
     [Test]
     public void IsCancelledRequestedReturnsTrueIfCancelled()
     {
@@ -654,7 +665,7 @@ public class S3BufferedUploadStreamTests
         stream.Setup(m => m.PerformFlush(It.IsAny<bool>())).Verifiable();
         await stream.Object.CompleteUpload();
         stream.Verify(m => m.PerformFlush(It.IsAny<bool>()), Times.Never);
-    }    
+    }
 
     [Test]
     public void CompleteUploadExitsIfCancelled()
@@ -666,7 +677,7 @@ public class S3BufferedUploadStreamTests
         stream.Object.Cancel();
         stream.Setup(m => m.PerformFlush(It.IsAny<bool>())).Verifiable();
         Assert.ThrowsAsync<TaskCanceledException>(async () => await stream.Object.CompleteUpload());
-    }    
+    }
 
     [Test]
     public async Task CompleteUploadCallsPerformFlush()
@@ -723,21 +734,7 @@ public class S3BufferedUploadStreamTests
         stream.Setup(m => m.AbortUpload()).CallBase();
         await stream.Object.AbortUpload();
         stream.Verify(m => m.SetAborted(It.IsAny<AbortMultipartUploadResponse>()), Times.Never);
-    }    
-
-    [Test]
-    public async Task AbortUploadExitsIfCancelled()
-    {
-        var s3ClientMock = new Mock<IAmazonS3>();
-        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
-        stream.Object._initiateResponse = Mock.Of<InitiateMultipartUploadResponse>();
-        stream.Setup(m => m.Cancel()).CallBase();
-        stream.Setup(m => m.AbortUpload()).CallBase();
-        stream.Object.Cancel();
-        await stream.Object.AbortUpload();
-        stream.Verify(m => m.SetAborted(It.IsAny<AbortMultipartUploadResponse>()), Times.Never);
-    }    
+    }
 
     [Test]
     public async Task AbortUploadExitsIfNoInitiateResponse()
@@ -748,7 +745,7 @@ public class S3BufferedUploadStreamTests
         stream.Setup(m => m.AbortUpload()).CallBase();
         await stream.Object.AbortUpload();
         stream.Verify(m => m.SetAborted(It.IsAny<AbortMultipartUploadResponse>()), Times.Never);
-    }    
+    }
 
     [Test]
     public async Task AbortUploadCallsSetAborted()
@@ -762,7 +759,7 @@ public class S3BufferedUploadStreamTests
         stream.Setup(m => m.AbortUpload()).CallBase();
         await stream.Object.AbortUpload();
         stream.Verify(m => m.SetAborted(It.IsAny<AbortMultipartUploadResponse>()), Times.Once);
-    }    
+    }
 
     [Test]
     public void SetInitiatedPopulatesAndSetsEncryptingToTrueIfEncrypting()
@@ -778,7 +775,7 @@ public class S3BufferedUploadStreamTests
         Assert.AreEqual(response, stream._initiateResponse);
         Assert.AreEqual(true, called);
         Assert.AreEqual(true, stream.IsEncrypting);
-        Assert.AreEqual(S3BufferedUploadStream.StateType.Uploading, stream.State);       
+        Assert.AreEqual(S3BufferedUploadStream.StateType.Uploading, stream.State);
     }
 
     [Test]
@@ -795,7 +792,7 @@ public class S3BufferedUploadStreamTests
         Assert.AreEqual(response, stream._initiateResponse);
         Assert.AreEqual(true, called);
         Assert.AreEqual(false, stream.IsEncrypting);
-        Assert.AreEqual(S3BufferedUploadStream.StateType.Uploading, stream.State);       
+        Assert.AreEqual(S3BufferedUploadStream.StateType.Uploading, stream.State);
     }
 
     [Test]
@@ -810,7 +807,7 @@ public class S3BufferedUploadStreamTests
         stream.SetCompleted(response);
         Assert.AreEqual(response, stream._completeResponse);
         Assert.AreEqual(true, called);
-        Assert.AreEqual(S3BufferedUploadStream.StateType.Completed, stream.State);       
+        Assert.AreEqual(S3BufferedUploadStream.StateType.Completed, stream.State);
     }
 
     [Test]
@@ -825,7 +822,7 @@ public class S3BufferedUploadStreamTests
         stream.SetAborted(response);
         Assert.AreEqual(response, stream._abortResponse);
         Assert.AreEqual(true, called);
-        Assert.AreEqual(S3BufferedUploadStream.StateType.Aborted, stream.State);       
+        Assert.AreEqual(S3BufferedUploadStream.StateType.Aborted, stream.State);
     }
 
     [Test]

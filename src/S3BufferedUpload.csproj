@@ -2,9 +2,10 @@
 
   <PropertyGroup>
     <PackageId>S3BufferedUpload</PackageId>
-    <Version>0.1.3</Version>
+    <Version>0.1.4</Version>
     <Authors>Jason Terando</Authors>
     <Company>Jason Terando</Company>
+    <PackageProjectUrl>https://github.com/jasonterando/S3BufferedUpload</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <TargetFrameworks>net6.0;net5.0;netcoreapp3.1;netstandard2.1</TargetFrameworks>

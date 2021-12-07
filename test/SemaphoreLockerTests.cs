@@ -43,14 +43,31 @@ public class SemaphoreLockerTests
     }
 
     [Test]
-    public async Task FaultsOnNestedContextes()
+    public async Task FaultsOnNestedContexts()
     {
         var locker = new SemaphoreLocker(100);
         var foo = 0;
-        await locker.LockAsync(() => Task.Run(() =>
+        await locker.LockAsync(async() => await Task.Run(() =>
         {
-            Assert.CatchAsync(() => locker.LockAsync(() => Task.Run(() => foo = 1)), 
-                "Unable to get thread context");
+            Assert.CatchAsync(async () => await locker.LockAsync(async () =>
+            {
+                await Task.Run(() => foo + 1);
+            }));
+        }));
+        Assert.AreEqual(0, foo);
+    }
+
+    [Test]
+    public async Task FaultsOnTypedNestedContexts()
+    {
+        var locker = new SemaphoreLocker(100);
+        var foo = 0;
+        await locker.LockAsync(async() => await Task.Run(() =>
+        {
+            Assert.CatchAsync(async () => await locker.LockAsync<int>(async () =>
+            {
+                return await Task.Run<int>(() => foo + 1);
+            }));
         }));
         Assert.AreEqual(0, foo);
     }

@@ -1,5 +1,4 @@
 ﻿using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using Amazon.S3.Model;
 using S3BufferedUploads;
