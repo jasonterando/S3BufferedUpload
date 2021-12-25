@@ -15,3 +15,6 @@ Standardize Cancelation Token
 ## 0.1.4
 Consolidate cleanup operations on S3BufferedUploadStream Dispose/Close
 Complete unit tests
+
+## 0.1.5
+Add reference to demonstration project

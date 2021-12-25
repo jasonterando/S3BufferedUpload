@@ -1,4 +1,3 @@
-
 # S3BufferedUpload
 
 This assembly supports the buffered uploading of streams much like the AWS TransferUtility upload methods.  However, it also supports non-seekable streams (such as the piped output from a console application).
@@ -77,6 +76,8 @@ Once the stream is is created, you simply write to it and once all data is writt
 
 The stream will buffer data (based upon the **bufferCapacity** value) and then dump the buffer once **minSendThreshold** is reached.  This should help performance and mitigate "backflow" problems.  You can manipulate these values when creating the stream to tune performance.  You can call the **Flush** method to flush the buffer to S3 at any time.
 
+> **Always be sure to Close or Dispose of this tream when done with it to automatically flush any buffered contents.**
+
 #### Thread Safety
 
 A sempahore-baesd locker is set up for each stream to make it as thread-safe as possible, which also makes the calls non-rentrant.  Basically, don't write to the same stream from different threads. (Note: didn't used Mutex because of numerous inferences that it wasn't safe to use with async-style mechanisms).
@@ -98,3 +99,7 @@ dotnet test /p:CollectCoverage=true
 
 The script **runtests.sh** demonstrates a CI/CD pipeline friendly mechanism to execute tests, determine coverage and generate a coverage report. It will exit with a
 non-zero code if tests fail and/or coverage is under the specified thresholds.
+
+## Demonstration
+
+There is a project on [GitHub](https://github.com/jasonterando/TeeStreamingDemo) demonstrating how to tee stream uploads to S3.
