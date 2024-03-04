@@ -1,14 +1,16 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Moq;
 using NUnit.Framework;
-using System;
-using System.Threading.Tasks;
-using System.Threading;
-using System.Collections.Generic;
 using S3BufferedUploads;
-using Amazon.Runtime;
+
+namespace S3BufferedUpload.Tests;
 
 public class S3BufferedUploadStreamTests
 {
@@ -338,6 +340,20 @@ public class S3BufferedUploadStreamTests
         stream.Verify(m => m.PerformFlush(false), Times.Once);
     }
 
+    [Test]
+    public async Task FlushAsyncShouldCallPerformFlush()
+    {
+        var s3ClientMock = new Mock<IAmazonS3>();
+        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
+            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+        stream.CallBase = false;
+        stream.Setup(m => m.FlushAsync(CancellationToken.None)).CallBase();
+        stream.Setup(m => m.PerformFlush(false)).Verifiable();
+        await stream.Object.FlushAsync();
+        stream.Verify(m => m.PerformFlush(false), Times.Once);
+    }
+
+    
     [Test]
     public async Task PerformFlushShouldExitIfNotInitialized()
     {

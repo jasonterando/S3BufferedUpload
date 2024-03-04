@@ -1,8 +1,10 @@
-using S3BufferedUploads;
-using Moq;
-using NUnit.Framework;
 using Amazon.S3;
 using Amazon.S3.Model;
+using Moq;
+using NUnit.Framework;
+using S3BufferedUploads;
+
+namespace S3BufferedUpload.Tests;
 
 public class S3BufferedUploadStreamFactoryTests
 {

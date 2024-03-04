@@ -2,15 +2,16 @@
 
   <PropertyGroup>
     <PackageId>S3BufferedUpload</PackageId>
-    <Version>0.1.4</Version>
+    <Version>0.1.6</Version>
     <Authors>Jason Terando</Authors>
     <Company>Jason Terando</Company>
     <PackageProjectUrl>https://github.com/jasonterando/S3BufferedUpload</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
-    <TargetFrameworks>net6.0;net5.0;netcoreapp3.1;netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net6.0;netcoreapp3.1;netstandard2.1</TargetFrameworks>
     <LangVersion>latestMajor</LangVersion>
     <Nullable>enable</Nullable>
+    <RootNamespace>S3BufferedUpload</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,8 +26,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="../README.md" Pack="true" PackagePath="\"/>
-    <None Include="../LICENSE.md" Pack="true" PackagePath="\"/>
+    <None Include="../README.md" Pack="true" PackagePath="\" />
+    <None Include="../LICENSE.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

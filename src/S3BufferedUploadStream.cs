@@ -30,25 +30,25 @@ public class S3BufferedUploadStream : Stream, IDisposable
 
     protected internal IAmazonS3 _s3Client;
     protected internal InitiateMultipartUploadRequest _initMultipartRequest;
-    protected internal Int32 _minSendTheshold = 0;
+    protected internal Int32 _minSendTheshold;
     protected internal Int32 _s3PartNumber = 1;
-    protected internal long _bytesUploaded = 0;
+    protected internal long _bytesUploaded;
 
-    protected internal MemoryStream _readBuffer = new MemoryStream();
+    protected internal MemoryStream _readBuffer = new();
 
-    protected internal List<PartETag> _partETags = new List<PartETag>();
-    protected internal InitiateMultipartUploadResponse? _initiateResponse = null;
-    protected internal CompleteMultipartUploadResponse? _completeResponse = null;
-    protected internal AbortMultipartUploadResponse? _abortResponse = null;
+    protected internal List<PartETag> _partETags = new();
+    protected internal InitiateMultipartUploadResponse? _initiateResponse;
+    protected internal CompleteMultipartUploadResponse? _completeResponse;
+    protected internal AbortMultipartUploadResponse? _abortResponse;
 
-    protected internal readonly SemaphoreLocker _locker = new SemaphoreLocker();
-    protected internal CancellationTokenSource _cancellation = new CancellationTokenSource();
+    protected internal readonly SemaphoreLocker _locker = new();
+    protected internal CancellationTokenSource _cancellation = new();
 
     public StateType State { protected internal set; get; } = StateType.Uninitiated;
-    public bool IsEncrypting { protected internal set; get; } = false;
+    public bool IsEncrypting { protected internal set; get; }
 
     /// <summary>
-    /// Convenience contructor that creates an upload request for the specified S3 bucket and key
+    /// Convenience constructor that creates an upload request for the specified S3 bucket and key
     /// </summary>
     /// <param name="s3Client"></param>
     /// <param name="bucketName"></param>
@@ -103,6 +103,7 @@ public class S3BufferedUploadStream : Stream, IDisposable
     void IDisposable.Dispose()
     {
         Cleanup();
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -189,6 +190,27 @@ public class S3BufferedUploadStream : Stream, IDisposable
         })).Wait();
     }
 
+
+    /// <summary>
+    /// Write anything still in buffer to S3
+    /// </summary>
+    /// <param name="cancellationToken"></param>
+    public override async Task FlushAsync(CancellationToken cancellationToken)
+    {
+        var registration = cancellationToken.Register(() =>
+        {
+            _cancellation.Cancel();
+        });
+        try
+        {
+            await _locker.LockAsync(async () => { await PerformFlush(); });
+        }
+        finally
+        {
+            await registration.DisposeAsync();
+        }
+    }
+
     /// <summary>
     /// This actually performs the write of any buffered content to S3
     /// </summary>
@@ -206,7 +228,7 @@ public class S3BufferedUploadStream : Stream, IDisposable
 
         // If we are encrypting not on the last part, reserve a byte
         // so that we can be ensured we will have a last part, which
-        // is required for encyrption.  This allows us to support
+        // is required for encryption.  This allows us to support
         // encryption for streams that are non-seekable/unknown length
         var reserveLastByte = (IsEncrypting && (!isLastPart));
         var partSize = reserveLastByte
@@ -250,10 +272,13 @@ public class S3BufferedUploadStream : Stream, IDisposable
 
             if (reserveLastByte) {
                 var buffer = new byte[1];
-                _readBuffer.Read(buffer, 0, 1);
+                var bytesRead = _readBuffer.Read(buffer, 0, 1);
                 _readBuffer.SetLength(0);
                 _readBuffer.Position = 0;
-                _readBuffer.Write(buffer, 0, 1);
+                if (bytesRead > 0)
+                {
+                    _readBuffer.Write(buffer, 0, bytesRead);
+                }
             } else
             {
                 _readBuffer.SetLength(0);
@@ -276,13 +301,7 @@ public class S3BufferedUploadStream : Stream, IDisposable
     /// <summary>
     /// Returns true if cancellation requested
     /// </summary>
-    public bool IsCancellationRequested
-    {
-        get
-        {
-            return _cancellation.IsCancellationRequested;
-        }
-    }
+    public bool IsCancellationRequested => _cancellation.IsCancellationRequested;
 
     /// <summary>
     /// Trigger the complete multipart upload call to S3
@@ -315,7 +334,7 @@ public class S3BufferedUploadStream : Stream, IDisposable
     }
 
     /// <summary>
-    /// Trigger the abourt of a multipart upload call to S3
+    /// Trigger the abort of a multipart upload call to S3
     /// </summary>
     protected internal virtual async Task AbortUpload()
     {
@@ -347,10 +366,7 @@ public class S3BufferedUploadStream : Stream, IDisposable
         State = StateType.Uploading;
         IsEncrypting = (_initiateResponse.ServerSideEncryptionMethod != null 
             && _initiateResponse.ServerSideEncryptionMethod.Value != ServerSideEncryptionMethod.None);
-        if (Initiated != null)
-        {
-            Initiated(this, _initiateResponse);
-        }
+        Initiated?.Invoke(this, _initiateResponse);
     }
 
     /// <summary>
@@ -361,49 +377,34 @@ public class S3BufferedUploadStream : Stream, IDisposable
     {
         _completeResponse = response;
         State = StateType.Completed;
-        if (Completed != null)
-        {
-            Completed(this, _completeResponse);
-        }
+        Completed?.Invoke(this, _completeResponse);
     }
 
     /// <summary>
     /// Set aborted response and trigger notifications
     /// </summary>
     /// <param name="response"></param>
-    protected virtual internal void SetAborted(AbortMultipartUploadResponse response)
+    protected internal virtual void SetAborted(AbortMultipartUploadResponse response)
     {
         _abortResponse = response;
         State = StateType.Aborted;
-        if (Aborted != null)
-        {
-            Aborted(this, _abortResponse);
-        }
+        Aborted?.Invoke(this, _abortResponse);
     }
 
     /// <summary>
     /// This stream type cannot be read from
     /// </summary>
-    public override bool CanRead
-    {
-        get => false;
-    }
+    public override bool CanRead => false;
 
     /// <summary>
     /// This stream type does not support seeking
     /// </summary>
-    public override bool CanSeek
-    {
-        get => false;
-    }
+    public override bool CanSeek => false;
 
     /// <summary>
     /// This stream can be written to
     /// </summary>
-    public override bool CanWrite
-    {
-        get => true;
-    }
+    public override bool CanWrite => true;
 
     /// <summary>
     /// Returns how many bytes have been uploaded (so far)
@@ -416,7 +417,7 @@ public class S3BufferedUploadStream : Stream, IDisposable
     public override long Position { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
     /// <summary>
-    /// This stream type does not spuport Read operations
+    /// This stream type does not support Read operations
     /// </summary>
     /// <param name="buffer"></param>
     /// <param name="offset"></param>

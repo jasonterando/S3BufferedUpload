@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using Amazon.S3;
 using Amazon.S3.Model;
@@ -6,10 +5,11 @@ using Amazon.S3.Transfer;
 using Moq;
 using NUnit.Framework;
 using S3BufferedUploads;
-using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
+
+namespace S3BufferedUpload.Tests;
 
 /// <summary>
 /// TransferUtility extension method testing, can not run in parallel

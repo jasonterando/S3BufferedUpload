@@ -6,7 +6,7 @@ This assembly supports the buffered uploading of streams much like the AWS Trans
 
 There are two mechanisms to use the functionality:
 
-1. By adding this assembly to your project, you will have a number of **UploadBuffered** and **UploadBufferedAsync** functions added to the TransferUtility class.  These operate similarly to their TransferUitlity Upload counterparts, except that they will work with any readable stream, not just seekable ones.
+1. By adding this assembly to your project, you will have a number of **UploadBuffered** and **UploadBufferedAsync** functions added to the TransferUtility class.  These operate similarly to their TransferUtility Upload counterparts, except that they will work with any readable stream, not just seekable ones.
 2. You can also use the **S3BufferedUploadStream** class directly.  This stream is a writable "front-end" to an S3 upload. 
 
 ### Using TransferUtility UploadBuffered/UploadBufferedAsync Functions
@@ -57,7 +57,7 @@ void UploadStream(string filePath, string s3BucketName, string s3Key)
 
 You can also create a S3BufferedUploadStream object, which lets you use set up an S3 destination as a stream output.  You also get options on how large to set the buffer, how long the object waits to send data to S3 (based upon bytes) and a number of events to track progress and ability to cancel an in-progress transfer.
 
-This stream is only writable, it may not be read from and will throw NotImplementedException on attempts to read, mainpulate position, etc.  S3BufferedUploadStream.Length will return the number of bytes uploaded to S3.
+This stream is only writable, it may not be read from and will throw NotImplementedException on attempts to read, manipulate position, etc.  S3BufferedUploadStream.Length will return the number of bytes uploaded to S3.
 
 There is a factory called **S3BufferedUploadStreamFactory** to make the stream more dependency injection friendly.
 
@@ -76,11 +76,11 @@ Once the stream is is created, you simply write to it and once all data is writt
 
 The stream will buffer data (based upon the **bufferCapacity** value) and then dump the buffer once **minSendThreshold** is reached.  This should help performance and mitigate "backflow" problems.  You can manipulate these values when creating the stream to tune performance.  You can call the **Flush** method to flush the buffer to S3 at any time.
 
-> **Always be sure to Close or Dispose of this tream when done with it to automatically flush any buffered contents.**
+> **Always be sure to Close or Dispose of this stream when done with it to automatically flush any buffered contents.**
 
 #### Thread Safety
 
-A sempahore-baesd locker is set up for each stream to make it as thread-safe as possible, which also makes the calls non-rentrant.  Basically, don't write to the same stream from different threads. (Note: didn't used Mutex because of numerous inferences that it wasn't safe to use with async-style mechanisms).
+A semaphore-based locker is set up for each stream to make it as thread-safe as possible, which also makes the calls non re-entrant.  Basically, don't write to the same stream from different threads. (Note: didn't used Mutex because of numerous inferences that it was not safe to use with async-style mechanisms).
 
 ## Testing
 

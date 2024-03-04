@@ -1,9 +1,9 @@
 using System;
-using NUnit.Framework;
 using System.Threading.Tasks;
+using NUnit.Framework;
 using S3BufferedUploads;
 
-namespace test;
+namespace S3BufferedUpload.Tests;
 
 public class SemaphoreLockerTests
 {
