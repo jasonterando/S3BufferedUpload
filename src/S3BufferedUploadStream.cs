@@ -242,6 +242,9 @@ public class S3BufferedUploadStream : Stream, IDisposable
                 BucketName = _initiateResponse.BucketName,
                 Key = _initiateResponse.Key,
                 UploadId = _initiateResponse.UploadId,
+                ServerSideEncryptionCustomerMethod = _initMultipartRequest.ServerSideEncryptionCustomerMethod,
+                ServerSideEncryptionCustomerProvidedKey = _initMultipartRequest.ServerSideEncryptionCustomerProvidedKey,
+                ServerSideEncryptionCustomerProvidedKeyMD5 = _initMultipartRequest.ServerSideEncryptionCustomerProvidedKeyMD5,
                 InputStream = _readBuffer,
                 PartSize = partSize,
                 PartNumber = _s3PartNumber++,
@@ -364,7 +367,7 @@ public class S3BufferedUploadStream : Stream, IDisposable
     {
         _initiateResponse = response;
         State = StateType.Uploading;
-        IsEncrypting = (_initiateResponse.ServerSideEncryptionMethod != null 
+        IsEncrypting = (_initiateResponse.ServerSideEncryptionMethod != null
             && _initiateResponse.ServerSideEncryptionMethod.Value != ServerSideEncryptionMethod.None);
         Initiated?.Invoke(this, _initiateResponse);
     }
