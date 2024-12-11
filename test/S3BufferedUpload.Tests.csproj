@@ -21,7 +21,7 @@
 
   
   <ItemGroup>
-    <PackageReference Include="AWSSDK.S3" Version="3.7.4" />
+    <PackageReference Include="AWSSDK.S3" Version="3.7.410.3" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
     <ProjectReference Include="..\src\S3BufferedUpload.csproj" />
   </ItemGroup>

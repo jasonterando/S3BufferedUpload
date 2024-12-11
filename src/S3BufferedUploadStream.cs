@@ -33,6 +33,7 @@ public class S3BufferedUploadStream : Stream, IDisposable
     protected internal Int32 _minSendTheshold;
     protected internal Int32 _s3PartNumber = 1;
     protected internal long _bytesUploaded;
+    protected internal ChecksumAlgorithm? _checksumAlgorithm;
 
     protected internal MemoryStream _readBuffer = new();
 
@@ -53,17 +54,19 @@ public class S3BufferedUploadStream : Stream, IDisposable
     /// <param name="s3Client"></param>
     /// <param name="bucketName"></param>
     /// <param name="key"></param>
+    /// <param name="checksumAlgorithm"></param>
     /// <param name="bufferCapacity"></param>
     /// <param name="minSendThreshold"></param>
     /// <exception cref="ArgumentException"></exception>
-    public S3BufferedUploadStream(IAmazonS3 s3Client, string bucketName, string key,
+    public S3BufferedUploadStream(IAmazonS3 s3Client, string bucketName, string key, ChecksumAlgorithm? checksumAlgorithm = null,
         int bufferCapacity = DEFAULT_READ_BUFFER_CAPACITY, int minSendThreshold = DEFAULT_MIN_SEND_THRESHOLD) : this
         (
             s3Client,
             new InitiateMultipartUploadRequest
             {
                 BucketName = bucketName,
-                Key = key
+                Key = key,
+                ChecksumAlgorithm = checksumAlgorithm
             },
             bufferCapacity,
             minSendThreshold
@@ -95,6 +98,7 @@ public class S3BufferedUploadStream : Stream, IDisposable
         _readBuffer.Capacity = bufferCapacity;
         _readBuffer.Position = 0;
         _minSendTheshold = minSendThreshold;
+        _checksumAlgorithm = request.ChecksumAlgorithm;
     }
 
     /// <summary>
@@ -248,7 +252,8 @@ public class S3BufferedUploadStream : Stream, IDisposable
                 InputStream = _readBuffer,
                 PartSize = partSize,
                 PartNumber = _s3PartNumber++,
-                IsLastPart = isLastPart
+                IsLastPart = isLastPart,
+                ChecksumAlgorithm = _checksumAlgorithm
             };
 
             if (hasData && (StreamTransfer != null))
@@ -270,7 +275,16 @@ public class S3BufferedUploadStream : Stream, IDisposable
                 UploadedPart(this, partResponse);
             }
 
-            _partETags.Add(new PartETag { PartNumber = partResponse.PartNumber, ETag = partResponse.ETag });
+            var partETag = new PartETag
+            {
+                PartNumber = partResponse.PartNumber, 
+                ETag = partResponse.ETag,
+                ChecksumSHA1 = partResponse.ChecksumSHA1,
+                ChecksumSHA256 = partResponse.ChecksumSHA256,
+                ChecksumCRC32 = partResponse.ChecksumCRC32,
+                ChecksumCRC32C = partResponse.ChecksumCRC32C
+            };
+            _partETags.Add(partETag);
             _bytesUploaded += partSize;
 
             if (reserveLastByte) {
