@@ -29,6 +29,22 @@ public class S3BufferedUploadStreamTests
         Assert.AreEqual(S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, stream._readBuffer?.Capacity);
         Assert.AreEqual(0, stream._readBuffer?.Position);
         Assert.AreEqual(S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD, stream._minSendTheshold);
+        Assert.IsNull(stream._initMultipartRequest.ChecksumAlgorithm);
+    }
+    
+    [Test]
+    public void CanConstructWithBucketKeyAndChecksumAlgorithm()
+    {
+        var s3ClientMock = new Mock<IAmazonS3>();
+        var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, ChecksumAlgorithm.SHA1);
+
+        Assert.AreEqual(s3ClientMock.Object, stream._s3Client);
+        Assert.AreEqual(S3_BUCKET_NAME, stream._initMultipartRequest.BucketName);
+        Assert.AreEqual(ChecksumAlgorithm.SHA1, stream._initMultipartRequest.ChecksumAlgorithm);
+        Assert.AreEqual(S3_KEY, stream._initMultipartRequest.Key);
+        Assert.AreEqual(S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, stream._readBuffer?.Capacity);
+        Assert.AreEqual(0, stream._readBuffer?.Position);
+        Assert.AreEqual(S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD, stream._minSendTheshold);
     }
 
     [Test]
@@ -36,8 +52,8 @@ public class S3BufferedUploadStreamTests
     {
         var s3ClientMock = new Mock<IAmazonS3>();
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            7 * 1024 * 1024,
-            5 * 1024 * 1024
+            bufferCapacity: 7 * 1024 * 1024,
+            minSendThreshold: 5 * 1024 * 1024
         );
 
         Assert.AreEqual(s3ClientMock.Object, stream._s3Client);
@@ -53,10 +69,10 @@ public class S3BufferedUploadStreamTests
     {
         var s3ClientMock = new Mock<IAmazonS3>();
         Assert.Catch<ArgumentException>(
-            () => new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, 4096, -1),
+            () => new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, bufferCapacity: 4096, minSendThreshold: -1),
             "Minimum send threhold must be greater than zero");
         Assert.Catch<ArgumentException>(
-            () => new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, 4 * 1024 * 1024, 5 * 1024 * 1024),
+            () => new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, bufferCapacity: 4 * 1024 * 1024, minSendThreshold: 5 * 1024 * 1024),
             "Buffer capacity must be at at least the minimum send threshold");
     }
 
@@ -64,7 +80,7 @@ public class S3BufferedUploadStreamTests
     public void DisposeCallsCleanup()
     {
         var s3ClientMock = new Mock<IAmazonS3>();
-        var mockStream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
+        var mockStream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, null,
             S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         mockStream.CallBase = true;
         mockStream.Object._initiateResponse = new InitiateMultipartUploadResponse();
@@ -77,7 +93,7 @@ public class S3BufferedUploadStreamTests
     public void CloseCallsAbortUploadIfCancelled()
     {
         var s3ClientMock = new Mock<IAmazonS3>();
-        var mockStream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
+        var mockStream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, null,
             S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         mockStream.CallBase = true;
         mockStream.Object._initiateResponse = new InitiateMultipartUploadResponse();
@@ -91,7 +107,7 @@ public class S3BufferedUploadStreamTests
     public void CleanupCallsCompleteUploadIfNotCancelled()
     {
         var s3ClientMock = new Mock<IAmazonS3>();
-        var mockStream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
+        var mockStream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, null,
             S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         mockStream.CallBase = true;
         mockStream.Object._initiateResponse = new InitiateMultipartUploadResponse();
@@ -104,7 +120,7 @@ public class S3BufferedUploadStreamTests
     public void CleanupCallsAbortUploadIfCancelled()
     {
         var s3ClientMock = new Mock<IAmazonS3>();
-        var mockStream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
+        var mockStream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, null,
             S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         mockStream.CallBase = true;
         mockStream.Object._initiateResponse = new InitiateMultipartUploadResponse();
@@ -331,7 +347,7 @@ public class S3BufferedUploadStreamTests
     public void FlushShouldCallPerformFlush()
     {
         var s3ClientMock = new Mock<IAmazonS3>();
-        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
+        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, null,
             S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         stream.CallBase = false;
         stream.Setup(m => m.Flush()).CallBase();
@@ -344,7 +360,7 @@ public class S3BufferedUploadStreamTests
     public async Task FlushAsyncShouldCallPerformFlush()
     {
         var s3ClientMock = new Mock<IAmazonS3>();
-        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
+        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, null,
             S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         stream.CallBase = false;
         stream.Setup(m => m.FlushAsync(CancellationToken.None)).CallBase();
@@ -535,7 +551,7 @@ public class S3BufferedUploadStreamTests
     {
         var s3ClientMock = new Mock<IAmazonS3>();
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+            bufferCapacity: S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, minSendThreshold: S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
 
         bool streamProgressDefined = false;
         s3ClientMock.Setup(m => m.UploadPartAsync(It.IsAny<UploadPartRequest>(), It.IsAny<CancellationToken>()))
@@ -556,7 +572,7 @@ public class S3BufferedUploadStreamTests
     {
         var s3ClientMock = new Mock<IAmazonS3>();
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+            bufferCapacity: S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, minSendThreshold: S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
 
         bool streamProgressDefined = false;
         s3ClientMock.Setup(m => m.UploadPartAsync(It.IsAny<UploadPartRequest>(), It.IsAny<CancellationToken>()))
@@ -577,7 +593,7 @@ public class S3BufferedUploadStreamTests
         var s3ClientMock = new Mock<IAmazonS3>();
         var uploadedPartCalled = false;
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+            bufferCapacity: S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, minSendThreshold: S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         stream.UploadedPart += (stream, _cancel) =>
         {
             uploadedPartCalled = true;
@@ -601,7 +617,7 @@ public class S3BufferedUploadStreamTests
         var s3ClientMock = new Mock<IAmazonS3>();
         var uploadedPartCalled = false;
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+            bufferCapacity: S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, minSendThreshold: S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         stream.UploadedPart += (stream, _cancel) =>
         {
             uploadedPartCalled = true;
@@ -624,7 +640,7 @@ public class S3BufferedUploadStreamTests
     {
         var s3ClientMock = new Mock<IAmazonS3>();
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+            bufferCapacity: S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, minSendThreshold: S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         s3ClientMock.Setup(m => m.UploadPartAsync(It.IsAny<UploadPartRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((UploadPartRequest request, CancellationToken _token) =>
             {
@@ -651,7 +667,7 @@ public class S3BufferedUploadStreamTests
     {
         var s3ClientMock = new Mock<IAmazonS3>();
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+            bufferCapacity: S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, minSendThreshold: S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         Assert.AreEqual(false, stream.IsCancellationRequested);
         stream.Cancel();
         Assert.AreEqual(true, stream.IsCancellationRequested);
@@ -662,7 +678,7 @@ public class S3BufferedUploadStreamTests
     public async Task CompleteUploadExitsIfNotInitialized()
     {
         var s3ClientMock = new Mock<IAmazonS3>();
-        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
+        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, null,
             S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         stream.CallBase = true;
         stream.Setup(m => m.PerformFlush(It.IsAny<bool>())).Verifiable();
@@ -674,7 +690,7 @@ public class S3BufferedUploadStreamTests
     public async Task CompleteUploadExitsIfCompleted()
     {
         var s3ClientMock = new Mock<IAmazonS3>();
-        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
+        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, null,
             S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         stream.Object._completeResponse = new CompleteMultipartUploadResponse();
         stream.CallBase = true;
@@ -687,7 +703,7 @@ public class S3BufferedUploadStreamTests
     public void CompleteUploadExitsIfCancelled()
     {
         var s3ClientMock = new Mock<IAmazonS3>();
-        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
+        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, null,
             S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         stream.CallBase = true;
         stream.Object.Cancel();
@@ -699,7 +715,7 @@ public class S3BufferedUploadStreamTests
     public async Task CompleteUploadCallsPerformFlush()
     {
         var s3ClientMock = new Mock<IAmazonS3>();
-        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
+        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, null,
             S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         stream.CallBase = false;
         stream.Object._initiateResponse = new InitiateMultipartUploadResponse();
@@ -714,7 +730,7 @@ public class S3BufferedUploadStreamTests
     public async Task CompleteUploadCallsGetsUploadParams()
     {
         var s3ClientMock = new Mock<IAmazonS3>();
-        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
+        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, null,
             S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         stream.CallBase = false;
         stream.Object._initiateResponse = new InitiateMultipartUploadResponse
@@ -743,7 +759,7 @@ public class S3BufferedUploadStreamTests
     public async Task AbortUploadExitsIftateIsNotUploading()
     {
         var s3ClientMock = new Mock<IAmazonS3>();
-        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
+        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, null,
             S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         stream.Object.State = S3BufferedUploadStream.StateType.Completed;
         stream.Object._initiateResponse = Mock.Of<InitiateMultipartUploadResponse>();
@@ -756,7 +772,7 @@ public class S3BufferedUploadStreamTests
     public async Task AbortUploadExitsIfNoInitiateResponse()
     {
         var s3ClientMock = new Mock<IAmazonS3>();
-        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
+        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, null,
             S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         stream.Setup(m => m.AbortUpload()).CallBase();
         await stream.Object.AbortUpload();
@@ -767,7 +783,7 @@ public class S3BufferedUploadStreamTests
     public async Task AbortUploadCallsSetAborted()
     {
         var s3ClientMock = new Mock<IAmazonS3>();
-        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
+        var stream = new Mock<S3BufferedUploadStream>(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY, null,
             S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         stream.Object._initiateResponse = Mock.Of<InitiateMultipartUploadResponse>();
         stream.Object.State = S3BufferedUploadStream.StateType.Uploading;
@@ -785,7 +801,7 @@ public class S3BufferedUploadStreamTests
         var response = new InitiateMultipartUploadResponse();
         response.ServerSideEncryptionMethod = ServerSideEncryptionMethod.AES256;
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+            bufferCapacity: S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, minSendThreshold: S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         stream.Initiated += ((stream, cancel) => { called = true; });
         stream.SetInitiated(response);
         Assert.AreEqual(response, stream._initiateResponse);
@@ -802,7 +818,7 @@ public class S3BufferedUploadStreamTests
         var response = new InitiateMultipartUploadResponse();
         response.ServerSideEncryptionMethod = ServerSideEncryptionMethod.None;
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+            bufferCapacity: S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, minSendThreshold: S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         stream.Initiated += ((stream, cancel) => { called = true; });
         stream.SetInitiated(response);
         Assert.AreEqual(response, stream._initiateResponse);
@@ -818,7 +834,7 @@ public class S3BufferedUploadStreamTests
         var called = false;
         var response = new CompleteMultipartUploadResponse();
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+            bufferCapacity: S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, minSendThreshold: S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         stream.Completed += ((stream, cancel) => { called = true; });
         stream.SetCompleted(response);
         Assert.AreEqual(response, stream._completeResponse);
@@ -833,7 +849,7 @@ public class S3BufferedUploadStreamTests
         var called = false;
         var response = new AbortMultipartUploadResponse();
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+            bufferCapacity: S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, minSendThreshold: S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         stream.Aborted += ((stream, cancel) => { called = true; });
         stream.SetAborted(response);
         Assert.AreEqual(response, stream._abortResponse);
@@ -846,7 +862,7 @@ public class S3BufferedUploadStreamTests
     {
         var s3ClientMock = new Mock<IAmazonS3>();
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+            bufferCapacity: S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, minSendThreshold: S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         Assert.AreEqual(false, stream.CanRead);
     }
 
@@ -855,7 +871,7 @@ public class S3BufferedUploadStreamTests
     {
         var s3ClientMock = new Mock<IAmazonS3>();
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+            bufferCapacity: S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, minSendThreshold: S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         Assert.AreEqual(false, stream.CanSeek);
     }
 
@@ -865,7 +881,7 @@ public class S3BufferedUploadStreamTests
     {
         var s3ClientMock = new Mock<IAmazonS3>();
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+            bufferCapacity: S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, minSendThreshold: S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         Assert.AreEqual(true, stream.CanWrite);
     }
 
@@ -874,7 +890,7 @@ public class S3BufferedUploadStreamTests
     {
         var s3ClientMock = new Mock<IAmazonS3>();
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+            bufferCapacity: S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, minSendThreshold: S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         Assert.Catch<NotImplementedException>(() => stream.Position = 0);
         Assert.Catch<NotImplementedException>(() => { var i = stream.Position; });
     }
@@ -884,7 +900,7 @@ public class S3BufferedUploadStreamTests
     {
         var s3ClientMock = new Mock<IAmazonS3>();
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+            bufferCapacity: S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, minSendThreshold: S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         Assert.Catch<NotImplementedException>(() => { var foo = new byte[1]; stream.Read(foo, 0, 1); });
     }
 
@@ -893,7 +909,7 @@ public class S3BufferedUploadStreamTests
     {
         var s3ClientMock = new Mock<IAmazonS3>();
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+            bufferCapacity: S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, minSendThreshold:S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         Assert.Catch<NotImplementedException>(() => stream.Seek(0, SeekOrigin.Begin));
     }
 
@@ -903,7 +919,7 @@ public class S3BufferedUploadStreamTests
     {
         var s3ClientMock = new Mock<IAmazonS3>();
         var stream = new S3BufferedUploadStream(s3ClientMock.Object, S3_BUCKET_NAME, S3_KEY,
-            S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
+            bufferCapacity: S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, minSendThreshold: S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
         Assert.Catch<NotImplementedException>(() => stream.SetLength(0));
     }
 }
