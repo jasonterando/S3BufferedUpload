@@ -2,20 +2,20 @@
 
   <PropertyGroup>
     <PackageId>S3BufferedUpload</PackageId>
-    <Version>0.1.6</Version>
+    <Version>0.2.6</Version>
     <Authors>Jason Terando</Authors>
     <Company>Jason Terando</Company>
     <PackageProjectUrl>https://github.com/jasonterando/S3BufferedUpload</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
-    <TargetFrameworks>net6.0;netcoreapp3.1;netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net8.0;netcoreapp3.1;netstandard2.1</TargetFrameworks>
     <LangVersion>latestMajor</LangVersion>
     <Nullable>enable</Nullable>
     <RootNamespace>S3BufferedUpload</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.S3" Version="3.7.4" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
   </ItemGroup>
 
