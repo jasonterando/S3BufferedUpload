@@ -265,9 +265,11 @@ public class S3BufferedUploadStreamTests
                 Assert.AreEqual(mockResponse.Key, request.Key);
                 Assert.AreEqual(mockResponse.UploadId, request.UploadId);
 
-                bytesToS3 += request.PartSize;
-                request.InputStream.Read(resultBuffer, resultBufferCount, (int)request.PartSize);
-                resultBufferCount += (int)request.PartSize;
+                var partSize = (int) (request.PartSize ?? 0);
+
+                bytesToS3 += partSize;
+                request.InputStream.Read(resultBuffer, resultBufferCount, partSize);
+                resultBufferCount += partSize;
                 s3WriteCount++;
                 return Mock.Of<UploadPartResponse>();
             });
@@ -310,9 +312,11 @@ public class S3BufferedUploadStreamTests
                 Assert.AreEqual(mockResponse.Key, request.Key);
                 Assert.AreEqual(mockResponse.UploadId, request.UploadId);
 
-                bytesToS3 += request.PartSize;
-                request.InputStream.Read(resultBuffer, resultBufferCount, (int)request.PartSize);
-                resultBufferCount += (int)request.PartSize;
+                var partSize = (int) (request.PartSize ?? 0);
+
+                bytesToS3 += partSize;
+                request.InputStream.Read(resultBuffer, resultBufferCount, partSize);
+                resultBufferCount += partSize;
                 s3WriteCount++;
                 return Mock.Of<UploadPartResponse>();
             });

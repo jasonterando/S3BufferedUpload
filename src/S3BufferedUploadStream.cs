@@ -207,7 +207,7 @@ public class S3BufferedUploadStream : Stream, IDisposable
         }
         finally
         {
-            await registration.DisposeAsync();
+            registration.Dispose();
         }
     }
 

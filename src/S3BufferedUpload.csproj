@@ -2,20 +2,26 @@
 
   <PropertyGroup>
     <PackageId>S3BufferedUpload</PackageId>
-    <Version>0.2.6</Version>
+    <Version>0.2.0</Version>
     <Authors>Jason Terando</Authors>
     <Company>Jason Terando</Company>
     <PackageProjectUrl>https://github.com/jasonterando/S3BufferedUpload</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
-    <TargetFrameworks>net8.0;netcoreapp3.1;netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net47;net48;net8.0;net9.0;netcoreapp3.1;netstandard2.1</TargetFrameworks>
     <LangVersion>latestMajor</LangVersion>
     <Nullable>enable</Nullable>
     <RootNamespace>S3BufferedUpload</RootNamespace>
+    <Description>This assembly supports the buffered uploading of streams much like the AWS TransferUtility upload methods. However, it also supports non-seekable streams (such as the piped output from a console application).</Description>
+    <RepositoryUrl>https://github.com/jasonterando/S3BufferedUpload</RepositoryUrl>
+    <RepositoryType>GitHub </RepositoryType>
+    <PackageTags>S3 DotNet</PackageTags>
+    <PackageReleaseNotes>Switched to MIT license, updated AWS SDK to v4</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.S3" Version="4.0.0" />
+    <PackageReference Include="AWSSDK.Core" Version="4.0.0.6" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.0.6" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
   </ItemGroup>
 

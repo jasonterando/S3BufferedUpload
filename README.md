@@ -2,6 +2,12 @@
 
 This assembly supports the buffered uploading of streams much like the AWS TransferUtility upload methods.  However, it also supports non-seekable streams (such as the piped output from a console application).
 
+## Project Status
+
+Howdy, found out some people were actually using this :)  Per their requests, I've switched the license to MIT, updated things AWS SDK to v4, and added .NET Framework and current .NET Core as targets.
+
+With all that said, I am no longer "hands-on" with .NET.  I will every so often peek in on this project and try and keep it up to date, but won't be supporting new features, at least any time soon.  If you would like to contribute or even take over the project, let me know. 
+
 ## Usage
 
 There are two mechanisms to use the functionality:

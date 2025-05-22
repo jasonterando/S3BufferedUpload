@@ -231,8 +231,7 @@ public class TransferUtilityBufferedUploadTests
 
     private void SetupMockedS3BufferedStream(bool markAsComplete = true)
     {
-        var foo = new AmazonS3Client();
-        var FinishSetup = (IAmazonS3 s3Client, InitiateMultipartUploadRequest request, int bufferCapacity, int minSendThreshold) =>
+        var finishSetup = (IAmazonS3 s3Client, InitiateMultipartUploadRequest request, int bufferCapacity, int minSendThreshold) =>
         {
             _mockedStream = new Mock<S3BufferedUploadStream>(s3Client, request,
                 S3BufferedUploadStream.DEFAULT_READ_BUFFER_CAPACITY, S3BufferedUploadStream.DEFAULT_MIN_SEND_THRESHOLD);
@@ -273,7 +272,7 @@ public class TransferUtilityBufferedUploadTests
         _mockedFactory.Setup(m => m.Create(It.IsAny<IAmazonS3>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>()))
             .Returns((IAmazonS3 s3Client, string s3Bucket, string s3Key, int bufferCapacity, int minSendThreshold) =>
             {
-                return FinishSetup(s3Client, new InitiateMultipartUploadRequest {
+                return finishSetup(s3Client, new InitiateMultipartUploadRequest {
                     BucketName = s3Bucket,
                     Key = s3Key
                 }, bufferCapacity, minSendThreshold);
@@ -281,7 +280,7 @@ public class TransferUtilityBufferedUploadTests
         _mockedFactory.Setup(m => m.Create(It.IsAny<IAmazonS3>(), It.IsAny<InitiateMultipartUploadRequest>(), It.IsAny<int>(), It.IsAny<int>()))
             .Returns((IAmazonS3 s3Client, InitiateMultipartUploadRequest request, int bufferCapacity, int minSendThreshold) =>
             {
-                return FinishSetup(s3Client, request, bufferCapacity, minSendThreshold);
+                return finishSetup(s3Client, request, bufferCapacity, minSendThreshold);
             });
 
         _saveFactory = S3BufferedUploadStreamFactory.Default;
